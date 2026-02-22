@@ -32,7 +32,10 @@ common_packages:
   - htop
   - tmux
   - ripgrep
-  - nodejs
-  - npm
   - rsync
   - unzip
+
+# Node.js runtime settings (official nvm install flow)
+nvm_version: "0.40.4"
+node_major: "24"
+node_setup_user: "pablo"

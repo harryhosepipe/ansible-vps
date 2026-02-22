@@ -51,6 +51,13 @@
     name: "{{ common_packages }}"
     state: present
 
+- name: Remove distro Node.js/npm packages to avoid conflicts with nvm
+  ansible.builtin.package:
+    name:
+      - nodejs
+      - npm
+    state: absent
+
 - name: Ensure bootstrap user exists
   ansible.builtin.user:
     name: "{{ bootstrap_user }}"
@@ -155,18 +162,62 @@
     direction: incoming
     policy: deny
 
-- name: Check whether corepack is available
-  ansible.builtin.command: corepack --version
-  register: corepack_check
-  changed_when: false
-  failed_when: false
+- name: Install nvm for bootstrap user
+  ansible.builtin.shell: |
+    set -euo pipefail
+    curl -o- "https://raw.githubusercontent.com/nvm-sh/nvm/v{{ nvm_version }}/install.sh" | bash
+  args:
+    executable: /bin/bash
+    creates: "/home/{{ node_setup_user }}/.nvm/nvm.sh"
+  become: true
+  become_user: "{{ node_setup_user }}"
 
-- name: Install corepack globally if missing
-  ansible.builtin.command: npm install -g corepack
-  when: corepack_check.rc != 0
+- name: Ensure nvm is loaded from .bashrc
+  ansible.builtin.blockinfile:
+    path: "/home/{{ node_setup_user }}/.bashrc"
+    marker: "# {mark} ANSIBLE MANAGED NVM"
+    block: |
+      export NVM_DIR="$HOME/.nvm"
+      [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+    owner: "{{ node_setup_user }}"
+    group: "{{ node_setup_user }}"
+    mode: "0644"
+    create: true
 
-- name: Enable corepack
-  ansible.builtin.command: corepack enable
+- name: Install Node.js major version via nvm
+  ansible.builtin.shell: |
+    set -euo pipefail
+    export NVM_DIR="$HOME/.nvm"
+    . "$NVM_DIR/nvm.sh"
+    nvm install "{{ node_major }}"
+    nvm alias default "{{ node_major }}"
+  args:
+    executable: /bin/bash
+  become: true
+  become_user: "{{ node_setup_user }}"
+  register: nvm_install_result
+  changed_when: "'is already installed' not in nvm_install_result.stdout"
+
+- name: Enable corepack for nvm-managed Node
+  ansible.builtin.shell: |
+    set -euo pipefail
+    export NVM_DIR="$HOME/.nvm"
+    . "$NVM_DIR/nvm.sh"
+    nvm use "{{ node_major }}" >/dev/null
+    corepack enable
+  args:
+    executable: /bin/bash
+  become: true
+  become_user: "{{ node_setup_user }}"
 
 - name: Activate latest pnpm via corepack
-  ansible.builtin.command: corepack prepare pnpm@latest --activate
+  ansible.builtin.shell: |
+    set -euo pipefail
+    export NVM_DIR="$HOME/.nvm"
+    . "$NVM_DIR/nvm.sh"
+    nvm use "{{ node_major }}" >/dev/null
+    corepack prepare pnpm@latest --activate
+  args:
+    executable: /bin/bash
+  become: true
+  become_user: "{{ node_setup_user }}"

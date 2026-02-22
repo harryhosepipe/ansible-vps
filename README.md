@@ -12,8 +12,9 @@ What it does by default:
 - enables firewall allowing `22`, `80`, `443`
 - enables fail2ban
 - enables unattended security updates on Debian/Ubuntu
-- installs base apps: curl, git, neovim, htop, tmux, ripgrep, nodejs, npm, rsync, unzip
-- enables corepack and activates latest pnpm
+- installs base apps: curl, git, neovim, htop, tmux, ripgrep, rsync, unzip
+- installs official `nvm` and Node.js `24.x` for `pablo`
+- enables corepack and activates latest pnpm for that Node runtime
 
 ## Preferred flow: copy key from WSL, then run on VPS
 
@@ -88,6 +89,9 @@ Edit `group_vars/all.yml` if needed:
 - `ssh_permit_root_login`
 - `ufw_allowed_tcp_ports`
 - `common_packages`
+- `nvm_version`
+- `node_major`
+- `node_setup_user`
 
 ## Run bootstrap (inventory mode)
 
@@ -102,4 +106,5 @@ ansible-playbook playbooks/bootstrap.yml
   - `BRANCH=main`
   - `BOOTSTRAP_USER=pablo`
 - You can override those as environment variables.
+- Node is managed via `nvm` (official installer), not distro `nodejs` packages.
 - Arch hosts are supported for package install/hardening, but unattended auto-updates are not configured by this playbook.

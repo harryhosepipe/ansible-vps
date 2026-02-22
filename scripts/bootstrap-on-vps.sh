@@ -12,6 +12,15 @@ WORKDIR="${WORKDIR:-/opt/ansible-vps}"
 BOOTSTRAP_USER="${BOOTSTRAP_USER:-pablo}"
 
 if [[ -z "${BOOTSTRAP_PUBKEY:-}" ]]; then
+  if [[ -r /root/.ssh/authorized_keys ]]; then
+    BOOTSTRAP_PUBKEY="$(grep -m1 -E '^(ssh-(ed25519|rsa)|ecdsa-sha2-nistp[0-9]+)[[:space:]]+' /root/.ssh/authorized_keys || true)"
+    if [[ -n "${BOOTSTRAP_PUBKEY}" ]]; then
+      echo "Using first SSH public key from /root/.ssh/authorized_keys"
+    fi
+  fi
+fi
+
+if [[ -z "${BOOTSTRAP_PUBKEY:-}" ]]; then
   if [[ -r /dev/tty ]]; then
     echo "Paste the SSH public key for ${BOOTSTRAP_USER} (single line), then press Enter:" > /dev/tty
     read -r BOOTSTRAP_PUBKEY < /dev/tty

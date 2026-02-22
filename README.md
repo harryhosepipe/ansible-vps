@@ -15,21 +15,33 @@ What it does by default:
 - installs base apps: curl, git, neovim, htop, tmux, ripgrep, nodejs, npm, rsync, unzip
 - enables corepack and activates latest pnpm
 
-## Preferred flow: run on the VPS (one command)
+## Preferred flow: copy key from WSL, then run on VPS
 
-1. SSH into the fresh VPS as `root`.
-2. Run:
+1. From WSL, copy your key to root on the VPS:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/harryhosepipe/ansible-vps/main/scripts/bootstrap-on-vps.sh | bash
+ssh-copy-id -i ~/.ssh/hostinger_ed25519.pub root@72.61.207.36
 ```
 
-The script will ask you to paste your SSH public key in the terminal.
-
-If you prefer non-interactive mode:
+2. SSH in:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/harryhosepipe/ansible-vps/main/scripts/bootstrap-on-vps.sh | BOOTSTRAP_PUBKEY='ssh-ed25519 AAAA... you@machine' bash
+ssh root@72.61.207.36
+```
+
+3. On the VPS, run:
+
+```bash
+curl -fsSL -o /tmp/bootstrap-on-vps.sh https://raw.githubusercontent.com/harryhosepipe/ansible-vps/main/scripts/bootstrap-on-vps.sh
+bash /tmp/bootstrap-on-vps.sh
+```
+
+The script will automatically reuse the first key from `/root/.ssh/authorized_keys` (set by `ssh-copy-id`) and install it for `pablo`.
+
+Fallback if no root key exists yet:
+
+```bash
+BOOTSTRAP_PUBKEY='ssh-ed25519 AAAA... you@machine' bash /tmp/bootstrap-on-vps.sh
 ```
 
 What this does:

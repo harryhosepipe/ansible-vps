@@ -24,7 +24,7 @@ What it does by default:
 curl -fsSL https://raw.githubusercontent.com/harryhosepipe/ansible-vps/main/scripts/bootstrap-on-vps.sh | bash
 ```
 
-The script will ask you to paste your SSH public key.
+The script will ask you to paste your SSH public key in the terminal.
 
 If you prefer non-interactive mode:
 

@@ -12,9 +12,9 @@ WORKDIR="${WORKDIR:-/opt/ansible-vps}"
 BOOTSTRAP_USER="${BOOTSTRAP_USER:-pablo}"
 
 if [[ -z "${BOOTSTRAP_PUBKEY:-}" ]]; then
-  if [[ -t 0 ]]; then
-    echo "Paste the SSH public key for ${BOOTSTRAP_USER} (single line), then press Enter:"
-    read -r BOOTSTRAP_PUBKEY
+  if [[ -r /dev/tty ]]; then
+    echo "Paste the SSH public key for ${BOOTSTRAP_USER} (single line), then press Enter:" > /dev/tty
+    read -r BOOTSTRAP_PUBKEY < /dev/tty
   else
     echo "Error: BOOTSTRAP_PUBKEY is required in non-interactive mode."
     echo "Example: BOOTSTRAP_PUBKEY='ssh-ed25519 AAAA... you@host' bash bootstrap-on-vps.sh"

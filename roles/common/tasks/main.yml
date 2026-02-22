@@ -1,32 +1,115 @@
 ---
-- name: Assert supported OS family
+- name: Assert supported distro family
   ansible.builtin.assert:
     that:
-      - ansible_os_family == "Debian"
-    fail_msg: "This role currently supports Debian/Ubuntu only."
+      - ansible_os_family in ["Debian", "Archlinux"]
+    fail_msg: "Supported families: Debian/Ubuntu and Arch Linux."
 
-- name: Update apt cache and upgrade packages
+- name: Set distro-specific values
+  ansible.builtin.set_fact:
+    _sudo_group: "{{ 'sudo' if ansible_os_family == 'Debian' else 'wheel' }}"
+    _ssh_service_name: "{{ 'ssh' if ansible_os_family == 'Debian' else 'sshd' }}"
+
+- name: Update and upgrade (Debian)
   ansible.builtin.apt:
     update_cache: true
     upgrade: dist
     cache_valid_time: 3600
+  when: ansible_os_family == "Debian"
 
-- name: Install baseline packages
+- name: Update and upgrade (Arch)
+  community.general.pacman:
+    update_cache: true
+    upgrade: true
+  when: ansible_os_family == "Archlinux"
+
+- name: Ensure base platform packages are present (Debian)
   ansible.builtin.apt:
+    name:
+      - ufw
+      - openssh-server
+      - sudo
+      - ca-certificates
+      - fail2ban
+      - unattended-upgrades
+    state: present
+  when: ansible_os_family == "Debian"
+
+- name: Ensure base platform packages are present (Arch)
+  community.general.pacman:
+    name:
+      - ufw
+      - openssh
+      - sudo
+      - ca-certificates
+      - fail2ban
+    state: present
+  when: ansible_os_family == "Archlinux"
+
+- name: Install common packages
+  ansible.builtin.package:
     name: "{{ common_packages }}"
     state: present
+
+- name: Ensure bootstrap user exists
+  ansible.builtin.user:
+    name: "{{ bootstrap_user }}"
+    shell: "{{ bootstrap_user_shell }}"
+    groups: "{{ _sudo_group }}"
+    append: true
+    create_home: true
+    state: present
+
+- name: Set authorized key for bootstrap user from control machine pubkey file
+  ansible.posix.authorized_key:
+    user: "{{ bootstrap_user }}"
+    key: "{{ lookup('ansible.builtin.file', bootstrap_user_ssh_public_key_path | regex_replace('^~', lookup('ansible.builtin.env', 'HOME'))) }}"
+    state: present
+
+- name: Configure passwordless sudo for bootstrap user
+  ansible.builtin.copy:
+    dest: "/etc/sudoers.d/90-{{ bootstrap_user }}"
+    owner: root
+    group: root
+    mode: "0440"
+    content: "{{ bootstrap_user }} ALL=(ALL) NOPASSWD:ALL\n"
+    validate: "visudo -cf %s"
+  when: bootstrap_user_passwordless_sudo | bool
 
 - name: Set system timezone
   community.general.timezone:
     name: "{{ timezone }}"
+
+- name: Configure PasswordAuthentication in sshd_config
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?PasswordAuthentication\\s+'
+    line: "PasswordAuthentication {{ 'no' if ssh_disable_password_auth else 'yes' }}"
+    create: false
+  notify: Restart ssh
+
+- name: Configure PermitRootLogin in sshd_config
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?PermitRootLogin\\s+'
+    line: "PermitRootLogin {{ 'yes' if ssh_permit_root_login else 'no' }}"
+    create: false
+  notify: Restart ssh
+
+- name: Ensure SSH service is enabled and started
+  ansible.builtin.service:
+    name: "{{ _ssh_service_name }}"
+    enabled: true
+    state: started
 
 - name: Ensure fail2ban is enabled and started
   ansible.builtin.service:
     name: fail2ban
     enabled: true
     state: started
+  when: enable_fail2ban | bool
 
-- name: Configure unattended upgrades
+- name: Configure unattended upgrades (Debian)
   ansible.builtin.copy:
     dest: /etc/apt/apt.conf.d/20auto-upgrades
     owner: root
@@ -37,6 +120,16 @@
       APT::Periodic::Download-Upgradeable-Packages "1";
       APT::Periodic::AutocleanInterval "7";
       APT::Periodic::Unattended-Upgrade "1";
+  when:
+    - enable_auto_updates | bool
+    - ansible_os_family == "Debian"
+
+- name: Note auto-update status on Arch
+  ansible.builtin.debug:
+    msg: "Auto updates are not configured on Arch in this playbook; upgrades happen when you run it."
+  when:
+    - enable_auto_updates | bool
+    - ansible_os_family == "Archlinux"
 
 - name: Allow configured UFW TCP ports
   community.general.ufw:
@@ -51,22 +144,18 @@
     direction: incoming
     policy: deny
 
-- name: Ensure deploy user exists (optional)
-  ansible.builtin.user:
-    name: "{{ deploy_user }}"
-    shell: "{{ deploy_user_shell }}"
-    groups: "{{ deploy_user_groups | join(',') }}"
-    append: true
-    create_home: true
-    state: present
-  when: create_deploy_user | bool
+- name: Check whether corepack is available
+  ansible.builtin.command: corepack --version
+  register: corepack_check
+  changed_when: false
+  failed_when: false
 
-- name: Set authorized key for deploy user (optional)
-  ansible.posix.authorized_key:
-    user: "{{ deploy_user }}"
-    key: "{{ deploy_user_ssh_public_key }}"
-    state: present
-  when:
-    - create_deploy_user | bool
-    - deploy_user_ssh_public_key is defined
-    - deploy_user_ssh_public_key | length > 0
+- name: Install corepack globally if missing
+  ansible.builtin.command: npm install -g corepack
+  when: corepack_check.rc != 0
+
+- name: Enable corepack
+  ansible.builtin.command: corepack enable
+
+- name: Activate latest pnpm via corepack
+  ansible.builtin.command: corepack prepare pnpm@latest --activate

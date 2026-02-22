@@ -1,28 +1,37 @@
 ---
-# Override per-host/per-group as needed.
+# Global defaults for VPS bootstrap. Override per-host/per-group as needed.
 
-# Timezone on target hosts
 timezone: UTC
 
-# Package baseline for Debian/Ubuntu hosts
+# Bootstrap identity
+bootstrap_user: pablo
+bootstrap_user_shell: /bin/bash
+bootstrap_user_passwordless_sudo: true
+bootstrap_user_ssh_public_key_path: "~/.ssh/hostinger_ed25519.pub"
+
+# SSH hardening policy
+ssh_disable_password_auth: true
+ssh_permit_root_login: true
+
+# Firewall baseline for web servers
+ufw_allowed_tcp_ports:
+  - 22
+  - 80
+  - 443
+
+# Hardening toggles
+enable_fail2ban: true
+enable_auto_updates: true
+
+# Cross-distro baseline packages
 common_packages:
   - curl
   - git
+  - neovim
   - htop
-  - vim
-  - ufw
-  - fail2ban
-  - unattended-upgrades
-
-# UFW rules (first match allow before deny policy)
-ufw_allowed_tcp_ports:
-  - 22
-
-# Optional: create a non-root deploy user
-create_deploy_user: false
-deploy_user: deploy
-deploy_user_groups:
-  - sudo
-deploy_user_shell: /bin/bash
-# Set to your local public key string if create_deploy_user=true
-# deploy_user_ssh_public_key: "ssh-ed25519 AAAA... your@email"
+  - tmux
+  - ripgrep
+  - nodejs
+  - npm
+  - rsync
+  - unzip

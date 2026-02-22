@@ -1,20 +1,27 @@
-# VPS Bootstrap with Ansible
+# ansible-vps
 
-Minimal Ansible repo to bring up a fresh Ubuntu/Debian VPS with:
-- package updates
-- baseline tools
-- UFW firewall
-- fail2ban
-- unattended security upgrades
-- optional non-root deploy user
+Single-playbook VPS bootstrap for Ubuntu, Debian, and Arch Linux.
 
-## 1. Install dependencies
+What it does by default:
+- updates system packages
+- creates user `pablo` with home directory
+- installs your SSH public key for `pablo`
+- grants `pablo` passwordless sudo
+- disables SSH password authentication (key-only)
+- keeps root SSH login enabled (for now)
+- enables firewall allowing `22`, `80`, `443`
+- enables fail2ban
+- enables unattended security updates on Debian/Ubuntu
+- installs base apps: curl, git, neovim, htop, tmux, ripgrep, nodejs, npm, rsync, unzip
+- enables corepack and activates latest pnpm
+
+## Requirements
 
 ```bash
 ansible-galaxy collection install -r requirements.yml
 ```
 
-## 2. Configure inventory
+## Configure target host
 
 Edit `inventory/hosts.yml`:
 
@@ -28,23 +35,24 @@ all:
           ansible_user: root
 ```
 
-## 3. Configure variables
+## Optional variable overrides
 
-Edit `group_vars/all.yml`:
-- `timezone`
+Edit `group_vars/all.yml` if needed:
+- `bootstrap_user`
+- `bootstrap_user_ssh_public_key_path`
+- `ssh_disable_password_auth`
+- `ssh_permit_root_login`
 - `ufw_allowed_tcp_ports`
-- `create_deploy_user`
-- `deploy_user_ssh_public_key` (if creating a deploy user)
+- `common_packages`
 
-## 4. Run bootstrap
+## Run bootstrap
 
 ```bash
 ansible-playbook playbooks/bootstrap.yml
 ```
 
-## 5. Suggested next roles
+## Notes
 
-- Docker / container runtime
-- App runtime (Node, Python, etc.)
-- Reverse proxy (Nginx/Caddy)
-- Backup + monitoring
+- Run from your local machine against remote VPS hosts over SSH.
+- Default SSH key path is `~/.ssh/hostinger_ed25519.pub` on your local machine.
+- Arch hosts are supported for package install/hardening, but unattended auto-updates are not configured by this playbook.

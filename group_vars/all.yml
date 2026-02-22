@@ -1,0 +1,28 @@
+---
+# Override per-host/per-group as needed.
+
+# Timezone on target hosts
+timezone: UTC
+
+# Package baseline for Debian/Ubuntu hosts
+common_packages:
+  - curl
+  - git
+  - htop
+  - vim
+  - ufw
+  - fail2ban
+  - unattended-upgrades
+
+# UFW rules (first match allow before deny policy)
+ufw_allowed_tcp_ports:
+  - 22
+
+# Optional: create a non-root deploy user
+create_deploy_user: false
+deploy_user: deploy
+deploy_user_groups:
+  - sudo
+deploy_user_shell: /bin/bash
+# Set to your local public key string if create_deploy_user=true
+# deploy_user_ssh_public_key: "ssh-ed25519 AAAA... your@email"

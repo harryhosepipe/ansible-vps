@@ -1,0 +1,10 @@
+---
+timezone: UTC
+common_packages: []
+ufw_allowed_tcp_ports:
+  - 22
+create_deploy_user: false
+deploy_user: deploy
+deploy_user_groups:
+  - sudo
+deploy_user_shell: /bin/bash

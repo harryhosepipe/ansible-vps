@@ -1,0 +1,72 @@
+---
+- name: Assert supported OS family
+  ansible.builtin.assert:
+    that:
+      - ansible_os_family == "Debian"
+    fail_msg: "This role currently supports Debian/Ubuntu only."
+
+- name: Update apt cache and upgrade packages
+  ansible.builtin.apt:
+    update_cache: true
+    upgrade: dist
+    cache_valid_time: 3600
+
+- name: Install baseline packages
+  ansible.builtin.apt:
+    name: "{{ common_packages }}"
+    state: present
+
+- name: Set system timezone
+  community.general.timezone:
+    name: "{{ timezone }}"
+
+- name: Ensure fail2ban is enabled and started
+  ansible.builtin.service:
+    name: fail2ban
+    enabled: true
+    state: started
+
+- name: Configure unattended upgrades
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Download-Upgradeable-Packages "1";
+      APT::Periodic::AutocleanInterval "7";
+      APT::Periodic::Unattended-Upgrade "1";
+
+- name: Allow configured UFW TCP ports
+  community.general.ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+  loop: "{{ ufw_allowed_tcp_ports }}"
+
+- name: Enable UFW with default deny incoming
+  community.general.ufw:
+    state: enabled
+    direction: incoming
+    policy: deny
+
+- name: Ensure deploy user exists (optional)
+  ansible.builtin.user:
+    name: "{{ deploy_user }}"
+    shell: "{{ deploy_user_shell }}"
+    groups: "{{ deploy_user_groups | join(',') }}"
+    append: true
+    create_home: true
+    state: present
+  when: create_deploy_user | bool
+
+- name: Set authorized key for deploy user (optional)
+  ansible.posix.authorized_key:
+    user: "{{ deploy_user }}"
+    key: "{{ deploy_user_ssh_public_key }}"
+    state: present
+  when:
+    - create_deploy_user | bool
+    - deploy_user_ssh_public_key is defined
+    - deploy_user_ssh_public_key | length > 0

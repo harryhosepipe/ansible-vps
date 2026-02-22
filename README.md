@@ -15,13 +15,45 @@ What it does by default:
 - installs base apps: curl, git, neovim, htop, tmux, ripgrep, nodejs, npm, rsync, unzip
 - enables corepack and activates latest pnpm
 
-## Requirements
+## Preferred flow: run on the VPS (one command)
+
+1. SSH into the fresh VPS as `root`.
+2. Run:
 
 ```bash
-ansible-galaxy collection install -r requirements.yml
+curl -fsSL https://raw.githubusercontent.com/harryhosepipe/ansible-vps/main/scripts/bootstrap-on-vps.sh | bash
 ```
 
-## Configure target host
+The script will ask you to paste your SSH public key.
+
+If you prefer non-interactive mode:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/harryhosepipe/ansible-vps/main/scripts/bootstrap-on-vps.sh | BOOTSTRAP_PUBKEY='ssh-ed25519 AAAA... you@machine' bash
+```
+
+What this does:
+- installs `git` + `ansible` on the VPS
+- pulls this repo with `ansible-pull`
+- runs local bootstrap against `localhost`
+- creates `pablo`, installs your key, applies hardening and packages
+
+## Local machine flow (alternative)
+
+Use this when you want to run from your laptop/WSL over SSH password:
+
+```bash
+sudo apt install -y sshpass
+ansible-galaxy collection install -r requirements.yml
+./scripts/bootstrap-fresh.sh 72.61.207.36
+```
+
+Optional:
+- custom SSH port: `./scripts/bootstrap-fresh.sh 72.61.207.36 2222`
+- custom local pubkey path:
+  `BOOTSTRAP_PUBKEY_PATH=~/.ssh/other.pub ./scripts/bootstrap-fresh.sh 72.61.207.36`
+
+## Inventory mode (advanced)
 
 Edit `inventory/hosts.yml`:
 
@@ -45,7 +77,7 @@ Edit `group_vars/all.yml` if needed:
 - `ufw_allowed_tcp_ports`
 - `common_packages`
 
-## Run bootstrap
+## Run bootstrap (inventory mode)
 
 ```bash
 ansible-playbook playbooks/bootstrap.yml
@@ -53,6 +85,9 @@ ansible-playbook playbooks/bootstrap.yml
 
 ## Notes
 
-- Run from your local machine against remote VPS hosts over SSH.
-- Default SSH key path is `~/.ssh/hostinger_ed25519.pub` on your local machine.
+- `bootstrap-on-vps.sh` defaults:
+  - `REPO_URL=https://github.com/harryhosepipe/ansible-vps.git`
+  - `BRANCH=main`
+  - `BOOTSTRAP_USER=pablo`
+- You can override those as environment variables.
 - Arch hosts are supported for package install/hardening, but unattended auto-updates are not configured by this playbook.

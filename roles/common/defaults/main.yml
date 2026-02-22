@@ -3,6 +3,7 @@ timezone: UTC
 bootstrap_user: pablo
 bootstrap_user_shell: /bin/bash
 bootstrap_user_passwordless_sudo: true
+bootstrap_user_ssh_public_key: ""
 bootstrap_user_ssh_public_key_path: "~/.ssh/hostinger_ed25519.pub"
 ssh_disable_password_auth: true
 ssh_permit_root_login: true

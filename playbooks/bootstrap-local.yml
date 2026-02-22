@@ -1,0 +1,8 @@
+---
+- name: Bootstrap fresh VPS (local pull mode)
+  hosts: localhost
+  connection: local
+  become: true
+  gather_facts: true
+  roles:
+    - role: common

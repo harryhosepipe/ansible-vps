@@ -60,11 +60,22 @@
     create_home: true
     state: present
 
+- name: Set authorized key for bootstrap user from provided key string
+  ansible.posix.authorized_key:
+    user: "{{ bootstrap_user }}"
+    key: "{{ bootstrap_user_ssh_public_key }}"
+    state: present
+  when:
+    - bootstrap_user_ssh_public_key is defined
+    - bootstrap_user_ssh_public_key | length > 0
+
 - name: Set authorized key for bootstrap user from control machine pubkey file
   ansible.posix.authorized_key:
     user: "{{ bootstrap_user }}"
     key: "{{ lookup('ansible.builtin.file', bootstrap_user_ssh_public_key_path | regex_replace('^~', lookup('ansible.builtin.env', 'HOME'))) }}"
     state: present
+  when:
+    - bootstrap_user_ssh_public_key is not defined or bootstrap_user_ssh_public_key | length == 0
 
 - name: Configure passwordless sudo for bootstrap user
   ansible.builtin.copy:
